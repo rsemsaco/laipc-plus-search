@@ -8,12 +8,38 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from providers import europe_pmc
+from providers import europe_pmc, openalex
 
 
 def write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def write_summary(
+    output_dir: Path,
+    provider_slug: str,
+    provider_name: str,
+    query: str,
+    records: list[dict],
+) -> None:
+    summary_lines = [
+        f"# LAIPC+ {provider_name} test",
+        "",
+        f"- Query: {query}",
+        f"- Results returned: {len(records)}",
+        "",
+        "## First results",
+    ]
+    for index, record in enumerate(records[:10], start=1):
+        title = record.get("title") or "(untitled)"
+        doi = record.get("doi") or "no DOI"
+        summary_lines.append(f"{index}. {title} | {doi}")
+
+    (output_dir / f"{provider_slug}_summary.md").write_text(
+        "\n".join(summary_lines) + "\n",
+        encoding="utf-8",
+    )
 
 
 def run_foundation(output_dir: Path) -> None:
@@ -34,39 +60,38 @@ def run_foundation(output_dir: Path) -> None:
     print("Status: OK")
 
 
-def run_europe_pmc(query: str, max_results: int, output_dir: Path) -> None:
-    records = europe_pmc.search(query=query, max_results=max_results)
+def run_provider(
+    provider_slug: str,
+    query: str,
+    max_results: int,
+    output_dir: Path,
+) -> None:
+    if provider_slug == "europe_pmc":
+        provider_name = "Europe PMC"
+        records = europe_pmc.search(query=query, max_results=max_results)
+        stage = "2.1"
+    elif provider_slug == "openalex":
+        provider_name = "OpenAlex"
+        records = openalex.search(query=query, max_results=max_results)
+        stage = "2.2"
+    else:
+        raise ValueError(f"Unsupported provider: {provider_slug}")
+
     payload = {
         "app": "LAIPC+ Search Engine",
-        "stage": "2.1",
-        "provider": "Europe PMC",
+        "stage": stage,
+        "provider": provider_name,
         "query": query,
         "requested_max_results": max_results,
         "returned_results": len(records),
         "executed_at_utc": datetime.now(timezone.utc).isoformat(),
         "records": records,
     }
-    write_json(output_dir / "europe_pmc_results.json", payload)
 
-    summary_lines = [
-        "# LAIPC+ Europe PMC test",
-        "",
-        f"- Query: {query}",
-        f"- Results returned: {len(records)}",
-        "",
-        "## First results",
-    ]
-    for index, record in enumerate(records[:10], start=1):
-        title = record.get("title") or "(untitled)"
-        doi = record.get("doi") or "no DOI"
-        summary_lines.append(f"{index}. {title} | {doi}")
+    write_json(output_dir / f"{provider_slug}_results.json", payload)
+    write_summary(output_dir, provider_slug, provider_name, query, records)
 
-    (output_dir / "europe_pmc_summary.md").write_text(
-        "\n".join(summary_lines) + "\n",
-        encoding="utf-8",
-    )
-
-    print("LAIPC+ Stage 2.1 - Europe PMC")
+    print(f"LAIPC+ Stage {stage} - {provider_name}")
     print(f"Query: {query}")
     print(f"Results: {len(records)}")
     print("Status: OK")
@@ -76,7 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LAIPC+ Search Engine")
     parser.add_argument(
         "--provider",
-        choices=["foundation", "europe_pmc"],
+        choices=["foundation", "europe_pmc", "openalex"],
         default="foundation",
     )
     parser.add_argument(
@@ -98,8 +123,8 @@ def main() -> None:
 
     if args.provider == "foundation":
         run_foundation(output_dir)
-    elif args.provider == "europe_pmc":
-        run_europe_pmc(args.query, args.max_results, output_dir)
+    else:
+        run_provider(args.provider, args.query, args.max_results, output_dir)
 
 
 if __name__ == "__main__":
