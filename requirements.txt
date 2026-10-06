@@ -1,0 +1,2 @@
+# LAIPC+ Search v0.1 foundation
+# External dependencies will be added in Stage 2.
