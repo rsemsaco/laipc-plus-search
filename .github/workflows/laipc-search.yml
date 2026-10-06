@@ -2,13 +2,24 @@ name: LAIPC+ Search Engine
 
 on:
   workflow_dispatch:
+    inputs:
+      query:
+        description: "Search query for the current provider test"
+        required: true
+        default: "chronic stress mice behavioral"
+        type: string
+      max_results:
+        description: "Maximum number of results"
+        required: true
+        default: "25"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  foundation-test:
-    name: Foundation smoke test
+  europe-pmc-test:
+    name: Europe PMC connector test
     runs-on: ubuntu-24.04
 
     steps:
@@ -25,13 +36,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run LAIPC+ foundation test
-        run: python search.py
+      - name: Query Europe PMC
+        run: |
+          python search.py             --provider europe_pmc             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
 
-      - name: Upload execution artifact
+      - name: Upload Europe PMC test artifact
         uses: actions/upload-artifact@v7
         with:
-          name: laipc-test-output
-          path: outputs/execution_test.json
+          name: laipc-europe-pmc-test
+          path: |
+            outputs/europe_pmc_results.json
+            outputs/europe_pmc_summary.md
           if-no-files-found: error
           retention-days: 7
