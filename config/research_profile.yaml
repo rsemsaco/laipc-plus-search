@@ -1,0 +1,13 @@
+project: "LAIPC+ Search Engine"
+profile_id: "chronic_stress_animals"
+status: "placeholder"
+
+research_question: >-
+  Identify studies in animal models of chronic stress with multidimensional
+  behavioral assessment and potentially reusable individual-level data.
+
+# Terms and search logic will be populated in Stage 3.
+population: []
+stress_models: []
+behavior_terms: []
+data_terms: []
