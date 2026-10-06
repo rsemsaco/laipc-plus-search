@@ -3,8 +3,16 @@ name: LAIPC+ Search Engine
 on:
   workflow_dispatch:
     inputs:
+      provider:
+        description: "Scientific source to test"
+        required: true
+        default: "openalex"
+        type: choice
+        options:
+          - openalex
+          - europe_pmc
       query:
-        description: "Search query for the current provider test"
+        description: "Search query"
         required: true
         default: "chronic stress mice behavioral"
         type: string
@@ -18,9 +26,11 @@ permissions:
   contents: read
 
 jobs:
-  europe-pmc-test:
-    name: Europe PMC connector test
+  provider-test:
+    name: Scientific provider connector test
     runs-on: ubuntu-24.04
+    env:
+      OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -36,16 +46,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Query Europe PMC
+      - name: Query selected provider
         run: |
-          python search.py             --provider europe_pmc             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+          python search.py             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
 
-      - name: Upload Europe PMC test artifact
+      - name: Upload provider test artifact
         uses: actions/upload-artifact@v7
         with:
-          name: laipc-europe-pmc-test
+          name: laipc-${{ inputs.provider }}-test
           path: |
-            outputs/europe_pmc_results.json
-            outputs/europe_pmc_summary.md
+            outputs/${{ inputs.provider }}_results.json
+            outputs/${{ inputs.provider }}_summary.md
           if-no-files-found: error
           retention-days: 7
