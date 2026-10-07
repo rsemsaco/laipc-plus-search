@@ -3,32 +3,40 @@ name: LAIPC+ Search Engine
 on:
   workflow_dispatch:
     inputs:
-      provider:
-        description: "Scientific source to test"
+      mode:
+        description: "Execution mode"
         required: true
-        default: "datacite"
+        default: "protocol"
         type: choice
         options:
-          - datacite
-          - openalex
+          - protocol
+          - provider_test
+      provider:
+        description: "Provider (used only in provider_test mode)"
+        required: true
+        default: "europe_pmc"
+        type: choice
+        options:
           - europe_pmc
+          - openalex
+          - datacite
       query:
-        description: "Search query"
+        description: "Manual query (used only in provider_test mode)"
         required: true
         default: "chronic stress mice behavioral"
         type: string
       max_results:
-        description: "Maximum number of results"
+        description: "Maximum results per query/provider"
         required: true
-        default: "25"
+        default: "10"
         type: string
 
 permissions:
   contents: read
 
 jobs:
-  provider-test:
-    name: Scientific provider connector test
+  search:
+    name: LAIPC+ protocol/provider search
     runs-on: ubuntu-24.04
     env:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
@@ -47,11 +55,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Query selected provider
+      - name: Run protocol-oriented search
+        if: ${{ inputs.mode == 'protocol' }}
         run: |
-          python search.py             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+          python search.py             --mode protocol             --profile config/research_profile.yaml             --max-results "${{ inputs.max_results }}"
+
+      - name: Run single-provider test
+        if: ${{ inputs.mode == 'provider_test' }}
+        run: |
+          python search.py             --mode provider_test             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+
+      - name: Upload Stage 3 protocol artifact
+        if: ${{ inputs.mode == 'protocol' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: laipc-stage3-protocol-search
+          path: |
+            outputs/query_plan.json
+            outputs/query_plan.md
+            outputs/protocol_raw_results.json
+            outputs/protocol_run_summary.md
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload provider test artifact
+        if: ${{ inputs.mode == 'provider_test' }}
         uses: actions/upload-artifact@v7
         with:
           name: laipc-${{ inputs.provider }}-test
