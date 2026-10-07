@@ -8,7 +8,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from providers import europe_pmc, openalex
+from providers import datacite, europe_pmc, openalex
 
 
 def write_json(path: Path, payload: object) -> None:
@@ -74,6 +74,10 @@ def run_provider(
         provider_name = "OpenAlex"
         records = openalex.search(query=query, max_results=max_results)
         stage = "2.2"
+    elif provider_slug == "datacite":
+        provider_name = "DataCite"
+        records = datacite.search(query=query, max_results=max_results)
+        stage = "2.3"
     else:
         raise ValueError(f"Unsupported provider: {provider_slug}")
 
@@ -101,7 +105,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LAIPC+ Search Engine")
     parser.add_argument(
         "--provider",
-        choices=["foundation", "europe_pmc", "openalex"],
+        choices=["foundation", "europe_pmc", "openalex", "datacite"],
         default="foundation",
     )
     parser.add_argument(
