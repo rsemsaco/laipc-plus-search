@@ -8,6 +8,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from engine.protocol_runner import run_protocol
+from engine.query_builder import build_query_plan, load_profile
 from providers import datacite, europe_pmc, openalex
 
 
@@ -16,7 +18,7 @@ def write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def write_summary(
+def write_provider_summary(
     output_dir: Path,
     provider_slug: str,
     provider_name: str,
@@ -60,7 +62,7 @@ def run_foundation(output_dir: Path) -> None:
     print("Status: OK")
 
 
-def run_provider(
+def run_single_provider(
     provider_slug: str,
     query: str,
     max_results: int,
@@ -93,7 +95,7 @@ def run_provider(
     }
 
     write_json(output_dir / f"{provider_slug}_results.json", payload)
-    write_summary(output_dir, provider_slug, provider_name, query, records)
+    write_provider_summary(output_dir, provider_slug, provider_name, query, records)
 
     print(f"LAIPC+ Stage {stage} - {provider_name}")
     print(f"Query: {query}")
@@ -101,12 +103,128 @@ def run_provider(
     print("Status: OK")
 
 
+def write_query_plan(output_dir: Path, profile: dict, plan: list) -> None:
+    plan_payload = {
+        "profile_id": profile.get("profile_id"),
+        "research_question": profile.get("research_question"),
+        "query_count": len(plan),
+        "queries": [item.to_dict() for item in plan],
+    }
+    write_json(output_dir / "query_plan.json", plan_payload)
+
+    lines = [
+        "# LAIPC+ Stage 3 query plan",
+        "",
+        f"- Profile: {profile.get('profile_id')}",
+        f"- Queries: {len(plan)}",
+        "",
+        "| ID | Family | Query |",
+        "|---|---|---|",
+    ]
+    for item in plan:
+        lines.append(f"| {item.query_id} | {item.family} | {item.query} |")
+
+    (output_dir / "query_plan.md").write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_protocol_summary(
+    output_dir: Path,
+    profile: dict,
+    plan: list,
+    run: dict,
+) -> None:
+    lines = [
+        "# LAIPC+ Stage 3 protocol search",
+        "",
+        f"- Profile: {profile.get('profile_id')}",
+        f"- Queries generated: {len(plan)}",
+        f"- Providers: {', '.join(run['providers'])}",
+        f"- Provider-query calls: {run['provider_query_calls']}",
+        f"- Raw records retrieved: {run['raw_record_count']}",
+        f"- Errors: {len(run['errors'])}",
+        "",
+        "## Counts by provider",
+    ]
+
+    for provider, count in run["counts_by_provider"].items():
+        lines.append(f"- {provider}: {count}")
+
+    lines.extend(["", "## Counts by query family"])
+    for family, count in run["counts_by_family"].items():
+        lines.append(f"- {family}: {count}")
+
+    if run["errors"]:
+        lines.extend(["", "## Retrieval errors"])
+        for error in run["errors"]:
+            lines.append(
+                f"- {error['query_id']} / {error['provider']}: "
+                f"{error['error_type']} - {error['error']}"
+            )
+
+    lines.extend([
+        "",
+        "## Important",
+        "This is a raw retrieval package. Duplicate records are intentionally retained.",
+        "KNOWN/NEW comparison, deduplication and prioritization belong to Stage 4.",
+    ])
+
+    (output_dir / "protocol_run_summary.md").write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def run_research_protocol(
+    profile_path: str,
+    max_results_per_query: int,
+    output_dir: Path,
+) -> None:
+    profile = load_profile(profile_path)
+    plan = build_query_plan(profile)
+
+    write_query_plan(output_dir, profile, plan)
+
+    provider_slugs = ["europe_pmc", "openalex", "datacite"]
+    run = run_protocol(
+        query_plan=plan,
+        provider_slugs=provider_slugs,
+        max_results_per_query=max_results_per_query,
+    )
+
+    payload = {
+        "app": "LAIPC+ Search Engine",
+        "stage": "3",
+        "profile_id": profile.get("profile_id"),
+        "research_question": profile.get("research_question"),
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        **run,
+    }
+    write_json(output_dir / "protocol_raw_results.json", payload)
+    write_protocol_summary(output_dir, profile, plan, run)
+
+    print("LAIPC+ Stage 3 - Protocol-oriented search")
+    print(f"Profile: {profile.get('profile_id')}")
+    print(f"Queries: {len(plan)}")
+    print(f"Provider-query calls: {run['provider_query_calls']}")
+    print(f"Raw records: {run['raw_record_count']}")
+    print(f"Errors: {len(run['errors'])}")
+    print("Status: OK")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LAIPC+ Search Engine")
     parser.add_argument(
-        "--provider",
-        choices=["foundation", "europe_pmc", "openalex", "datacite"],
+        "--mode",
+        choices=["foundation", "provider_test", "protocol"],
         default="foundation",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["europe_pmc", "openalex", "datacite"],
+        default="europe_pmc",
     )
     parser.add_argument(
         "--query",
@@ -115,7 +233,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-results",
         type=int,
-        default=25,
+        default=10,
+    )
+    parser.add_argument(
+        "--profile",
+        default="config/research_profile.yaml",
     )
     return parser.parse_args()
 
@@ -125,10 +247,12 @@ def main() -> None:
     output_dir = Path("outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.provider == "foundation":
+    if args.mode == "foundation":
         run_foundation(output_dir)
-    else:
-        run_provider(args.provider, args.query, args.max_results, output_dir)
+    elif args.mode == "provider_test":
+        run_single_provider(args.provider, args.query, args.max_results, output_dir)
+    elif args.mode == "protocol":
+        run_research_protocol(args.profile, args.max_results, output_dir)
 
 
 if __name__ == "__main__":
