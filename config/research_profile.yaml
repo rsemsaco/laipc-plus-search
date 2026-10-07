@@ -1,13 +1,58 @@
 project: "LAIPC+ Search Engine"
 profile_id: "chronic_stress_animals"
-status: "placeholder"
+status: "active"
+version: "0.1"
 
 research_question: >-
   Identify studies in animal models of chronic stress with multidimensional
   behavioral assessment and potentially reusable individual-level data.
 
-# Terms and search logic will be populated in Stage 3.
-population: []
-stress_models: []
-behavior_terms: []
-data_terms: []
+population_terms:
+  - mouse
+  - mice
+  - rat
+  - rats
+  - rodent
+
+stress_models:
+  - chronic unpredictable stress
+  - chronic unpredictable mild stress
+  - chronic social defeat stress
+  - chronic restraint stress
+  - chronic mild stress
+
+behavior_terms:
+  - behavioral battery
+  - multidimensional behavior
+  - sucrose preference
+  - open field
+  - forced swim
+  - social interaction
+  - elevated plus maze
+
+data_terms:
+  - dataset
+  - raw data
+  - source data
+  - supplementary data
+  - individual data
+
+query_strategy:
+  max_queries: 14
+
+  broad_queries:
+    - "chronic stress rodent behavioral battery"
+    - "chronic stress mice behavioral battery"
+    - "chronic stress rats behavioral battery"
+
+  model_suffix: "rodent behavioral"
+
+  assay_combinations:
+    - ["sucrose preference", "open field", "forced swim"]
+    - ["social interaction", "open field", "forced swim"]
+    - ["sucrose preference", "social interaction", "elevated plus maze"]
+
+  dataset_queries:
+    - "chronic stress rodent behavioral dataset"
+    - "chronic stress mice individual behavioral data"
+    - "chronic stress rat source data behavior"
