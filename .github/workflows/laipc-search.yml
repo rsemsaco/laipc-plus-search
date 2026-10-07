@@ -6,9 +6,10 @@ on:
       provider:
         description: "Scientific source to test"
         required: true
-        default: "openalex"
+        default: "datacite"
         type: choice
         options:
+          - datacite
           - openalex
           - europe_pmc
       query:
