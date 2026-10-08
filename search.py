@@ -10,6 +10,7 @@ from pathlib import Path
 
 from engine.protocol_runner import run_protocol
 from engine.query_builder import build_query_plan, load_profile
+from engine.stage4 import process_stage4, write_csv
 from providers import datacite, europe_pmc, openalex
 
 
@@ -177,22 +178,29 @@ def write_protocol_summary(
     )
 
 
+def execute_protocol(
+    profile_path: str,
+    max_results_per_query: int,
+    output_dir: Path,
+) -> tuple[dict, list, dict]:
+    profile = load_profile(profile_path)
+    plan = build_query_plan(profile)
+    write_query_plan(output_dir, profile, plan)
+
+    run = run_protocol(
+        query_plan=plan,
+        provider_slugs=["europe_pmc", "openalex", "datacite"],
+        max_results_per_query=max_results_per_query,
+    )
+    return profile, plan, run
+
+
 def run_research_protocol(
     profile_path: str,
     max_results_per_query: int,
     output_dir: Path,
 ) -> None:
-    profile = load_profile(profile_path)
-    plan = build_query_plan(profile)
-
-    write_query_plan(output_dir, profile, plan)
-
-    provider_slugs = ["europe_pmc", "openalex", "datacite"]
-    run = run_protocol(
-        query_plan=plan,
-        provider_slugs=provider_slugs,
-        max_results_per_query=max_results_per_query,
-    )
+    profile, plan, run = execute_protocol(profile_path, max_results_per_query, output_dir)
 
     payload = {
         "app": "LAIPC+ Search Engine",
@@ -214,11 +222,103 @@ def run_research_protocol(
     print("Status: OK")
 
 
+def write_stage4_summary(output_dir: Path, audit: dict) -> None:
+    status_counts = audit.get("status_counts") or {}
+    priority_counts = audit.get("priority_counts") or {}
+
+    lines = [
+        "# LAIPC+ Stage 4 - Deduplication + corpus comparison",
+        "",
+        f"- Raw records: {audit['raw_record_count']}",
+        f"- Unique records: {audit['unique_record_count']}",
+        f"- Duplicates removed: {audit['duplicates_removed']}",
+        f"- Unique articles: {audit['article_count']}",
+        f"- Unique datasets: {audit['dataset_count']}",
+        f"- Known corpus size: {audit['known_corpus_count']}",
+        "",
+        "## Corpus status",
+        f"- KNOWN: {status_counts.get('KNOWN', 0)}",
+        f"- RELATED_TO_KNOWN: {status_counts.get('RELATED_TO_KNOWN', 0)}",
+        f"- NEW: {status_counts.get('NEW', 0)}",
+        "",
+        "## Retrieval priority",
+        f"- Alta: {priority_counts.get('Alta', 0)}",
+        f"- Media: {priority_counts.get('Media', 0)}",
+        f"- Exploratoria: {priority_counts.get('Exploratoria', 0)}",
+        f"- NEW + Alta: {audit.get('high_priority_new_count', 0)}",
+        "",
+        "## Methodological boundary",
+        "Retrieval priority is only a search heuristic.",
+        "It does not assign S0-S3 or D0-D4 to new records.",
+        "Existing S/D values appear only when a record matches the audited C01-C45 corpus.",
+    ]
+
+    (output_dir / "stage4_summary.md").write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def run_stage4(
+    profile_path: str,
+    known_corpus_path: str,
+    max_results_per_query: int,
+    output_dir: Path,
+) -> None:
+    profile, plan, run = execute_protocol(profile_path, max_results_per_query, output_dir)
+
+    raw_payload = {
+        "app": "LAIPC+ Search Engine",
+        "stage": "3",
+        "profile_id": profile.get("profile_id"),
+        "research_question": profile.get("research_question"),
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        **run,
+    }
+    write_json(output_dir / "protocol_raw_results.json", raw_payload)
+
+    ranked, audit = process_stage4(
+        raw_records=run["records"],
+        known_corpus_path=known_corpus_path,
+        profile=profile,
+    )
+
+    stage4_payload = {
+        "app": "LAIPC+ Search Engine",
+        "stage": "4",
+        "profile_id": profile.get("profile_id"),
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "audit": audit,
+        "records": ranked,
+    }
+    write_json(output_dir / "stage4_unique_records.json", stage4_payload)
+    write_json(output_dir / "stage4_dedup_audit.json", audit)
+    write_csv(output_dir / "stage4_all_unique.csv", ranked)
+
+    candidate_records = [
+        record
+        for record in ranked
+        if record.get("corpus_status") in {"NEW", "RELATED_TO_KNOWN"}
+    ]
+    write_csv(output_dir / "stage4_new_candidates.csv", candidate_records)
+    write_stage4_summary(output_dir, audit)
+
+    print("LAIPC+ Stage 4 - Deduplication + KNOWN/NEW")
+    print(f"Raw records: {audit['raw_record_count']}")
+    print(f"Unique records: {audit['unique_record_count']}")
+    print(f"Duplicates removed: {audit['duplicates_removed']}")
+    print(f"KNOWN: {audit['status_counts'].get('KNOWN', 0)}")
+    print(f"RELATED_TO_KNOWN: {audit['status_counts'].get('RELATED_TO_KNOWN', 0)}")
+    print(f"NEW: {audit['status_counts'].get('NEW', 0)}")
+    print(f"NEW + Alta: {audit['high_priority_new_count']}")
+    print("Status: OK")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LAIPC+ Search Engine")
     parser.add_argument(
         "--mode",
-        choices=["foundation", "provider_test", "protocol"],
+        choices=["foundation", "provider_test", "protocol", "stage4"],
         default="foundation",
     )
     parser.add_argument(
@@ -239,6 +339,10 @@ def parse_args() -> argparse.Namespace:
         "--profile",
         default="config/research_profile.yaml",
     )
+    parser.add_argument(
+        "--known-corpus",
+        default="reference/corpus_known.csv",
+    )
     return parser.parse_args()
 
 
@@ -253,6 +357,8 @@ def main() -> None:
         run_single_provider(args.provider, args.query, args.max_results, output_dir)
     elif args.mode == "protocol":
         run_research_protocol(args.profile, args.max_results, output_dir)
+    elif args.mode == "stage4":
+        run_stage4(args.profile, args.known_corpus, args.max_results, output_dir)
 
 
 if __name__ == "__main__":
