@@ -6,9 +6,10 @@ on:
       mode:
         description: "Execution mode"
         required: true
-        default: "protocol"
+        default: "stage4"
         type: choice
         options:
+          - stage4
           - protocol
           - provider_test
       provider:
@@ -36,7 +37,7 @@ permissions:
 
 jobs:
   search:
-    name: LAIPC+ protocol/provider search
+    name: LAIPC+ search pipeline
     runs-on: ubuntu-24.04
     env:
       OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
@@ -55,7 +56,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run protocol-oriented search
+      - name: Run Stage 4 deduplication and corpus comparison
+        if: ${{ inputs.mode == 'stage4' }}
+        run: |
+          python search.py             --mode stage4             --profile config/research_profile.yaml             --known-corpus reference/corpus_known.csv             --max-results "${{ inputs.max_results }}"
+
+      - name: Run Stage 3 protocol-oriented search
         if: ${{ inputs.mode == 'protocol' }}
         run: |
           python search.py             --mode protocol             --profile config/research_profile.yaml             --max-results "${{ inputs.max_results }}"
@@ -64,6 +70,23 @@ jobs:
         if: ${{ inputs.mode == 'provider_test' }}
         run: |
           python search.py             --mode provider_test             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+
+      - name: Upload Stage 4 artifact
+        if: ${{ inputs.mode == 'stage4' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: laipc-stage4-dedup-known-new
+          path: |
+            outputs/query_plan.json
+            outputs/query_plan.md
+            outputs/protocol_raw_results.json
+            outputs/stage4_unique_records.json
+            outputs/stage4_all_unique.csv
+            outputs/stage4_new_candidates.csv
+            outputs/stage4_dedup_audit.json
+            outputs/stage4_summary.md
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload Stage 3 protocol artifact
         if: ${{ inputs.mode == 'protocol' }}
