@@ -6,7 +6,7 @@ on:
       mode:
         description: "Execution mode"
         required: true
-        default: "stage4"
+        default: "stage5"
         type: choice
         options:
           - stage4
@@ -56,6 +56,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Run Stage 5 practical delivery
+        if: ${{ inputs.mode == 'stage5' }}
+        run: |
+          python search.py \
+            --mode stage5 \
+            --profile config/research_profile.yaml \
+            --known-corpus reference/corpus_known.csv \
+            --max-results "${{ inputs.max_results }}"
+
       - name: Run Stage 4 deduplication and corpus comparison
         if: ${{ inputs.mode == 'stage4' }}
         run: |
@@ -70,6 +79,25 @@ jobs:
         if: ${{ inputs.mode == 'provider_test' }}
         run: |
           python search.py             --mode provider_test             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+
+      - name: Upload Stage 5 final package
+        if: ${{ inputs.mode == 'stage5' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: laipc-stage5-final-package
+          path: |
+            outputs/LAIPC_Search.xlsx
+            outputs/LAIPC_Search.csv
+            outputs/work_handoff.csv
+            outputs/search_log.json
+            outputs/search_summary.md
+            outputs/query_plan.json
+            outputs/query_plan.md
+            outputs/protocol_raw_results.json
+            outputs/stage4_unique_records.json
+            outputs/stage4_dedup_audit.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload Stage 4 artifact
         if: ${{ inputs.mode == 'stage4' }}
