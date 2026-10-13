@@ -14,9 +14,9 @@ def normalize_doi(value: Any) -> str | None:
     if not value:
         return None
     text = str(value).strip().lower()
-    text = re.sub(r"^https?://(dx\\.)?doi\\.org/", "", text)
-    text = re.sub(r"^doi:\\s*", "", text)
-    match = re.search(r"10\\.\\d{4,9}/[^\\s;,]+", text, flags=re.I)
+    text = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", text, flags=re.I)
+    text = re.sub(r"^doi:\s*", "", text, flags=re.I)
+    match = re.search(r"10\.\d{4,9}/[^\s;,]+", text, flags=re.I)
     if not match:
         return None
     return match.group(0).rstrip(").,;").lower()
@@ -26,14 +26,14 @@ def normalize_pmid(value: Any) -> str | None:
     if not value:
         return None
     text = str(value)
-    match = re.search(r"(?:pubmed\\.ncbi\\.nlm\\.nih\\.gov/)?(\\d{6,9})", text)
+    match = re.search(r"(?:pubmed\.ncbi\.nlm\.nih\.gov/)?(\d{6,9})", text, flags=re.I)
     return match.group(1) if match else None
 
 
 def normalize_pmcid(value: Any) -> str | None:
     if not value:
         return None
-    match = re.search(r"PMC\\d+", str(value), flags=re.I)
+    match = re.search(r"\bPMC\d+\b", str(value), flags=re.I)
     return match.group(0).upper() if match else None
 
 
