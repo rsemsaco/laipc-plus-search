@@ -9,47 +9,52 @@ MVP do motor de busca científica orientado por protocolo do LAIPC+.
 - Stage 2.2: OpenAlex connector - validated
 - Stage 2.3: DataCite dataset connector - validated
 - Stage 3: protocol-oriented query engine - validated
-- Stage 4: deduplication + C01-C45 KNOWN/NEW comparison - in validation
-- Stage 5: final export + GPT/Work qualification handoff - pending
+- Stage 4: deduplication + C01-C45 KNOWN/NEW comparison - validated after persistent-ID normalization fix
+- Stage 5: final export + GPT/Work qualification handoff - in validation
 
-## Stage 4
+## Important Stage 4 correction
 
-Stage 4 reruns the protocol search and then:
+The first Stage 4 validation exposed an escaping bug in DOI/PMID/PMCID regular expressions. Persistent identifiers were present in provider metadata but were not being normalized, causing known records such as C22 to appear as NEW.
 
-1. deduplicates article records by DOI, then PMID/PMCID, then normalized title;
-2. applies conservative fuzzy title matching only to records that lack persistent identifiers;
-3. consolidates DataCite concept/version DOI records using identity/version relations;
-4. preserves article and dataset records as different resource classes;
-5. aggregates the queries and sources that retrieved each unique record;
-6. compares unique records against the audited 45-record reference corpus in `reference/corpus_known.csv`;
-7. labels records as:
-   - `KNOWN`
-   - `RELATED_TO_KNOWN` for datasets/resources linked to a known article
-   - `NEW`
-8. assigns only a retrieval-priority heuristic: `Alta`, `Media`, or `Exploratoria`.
+The normalization is now corrected before Stage 5. Stage 5 reruns the search and Stage 4 processing, so no separate Stage 4 rerun is required.
 
-The priority heuristic is not an S/D classification. New records are never assigned S0-S3 or D0-D4 automatically.
+## Stage 5
 
-When a result matches the existing C01-C45 corpus, the previously audited S/D values are carried forward as reference metadata.
-
-## Stage 4 test
+Stage 5 produces the first practical research-delivery package.
 
 Use **Actions > LAIPC+ Search Engine > Run workflow**.
 
 Choose:
 
-- Mode: `stage4`
+- Mode: `stage5`
 - Maximum results per query/provider: `10`
 
-The artifact `laipc-stage4-dedup-known-new` contains:
+The artifact `laipc-stage5-final-package` contains:
 
-- `query_plan.json`
-- `query_plan.md`
-- `protocol_raw_results.json`
-- `stage4_unique_records.json`
-- `stage4_all_unique.csv`
-- `stage4_new_candidates.csv`
-- `stage4_dedup_audit.json`
-- `stage4_summary.md`
+- `LAIPC_Search.xlsx`
+- `LAIPC_Search.csv`
+- `work_handoff.csv`
+- `search_log.json`
+- `search_summary.md`
+- query plan and raw/audit files for reproducibility
 
-Stage 5 will create the final XLSX/CSV package and prepare the selected NEW records for GPT + Work review and S/D qualification.
+### Workbook
+
+`LAIPC_Search.xlsx` contains:
+
+- `Resumo`
+- `Candidatos_NEW`
+- `Alta_Prioridade`
+- `Datasets`
+- `KNOWN`
+- `Work_Handoff`
+- `Plano_Busca`
+- `Metodologia`
+
+### GPT / Work boundary
+
+The search engine does not assign S0-S3 or D0-D4 to NEW records.
+
+`Work_Handoff` contains all high-retrieval-priority NEW/RELATED records plus every dataset record. These records are intended to be brought to ChatGPT for scientific pre-triage. ChatGPT then selects the papers/datasets that require PDF/data audit in Work.
+
+Existing S/D values are carried forward only for matches against the already audited C01-C45 corpus.
