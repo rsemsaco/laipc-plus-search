@@ -10,7 +10,7 @@ from pathlib import Path
 
 from engine.protocol_runner import run_protocol
 from engine.query_builder import build_query_plan, load_profile
-from engine.stage4 import process_stage4, write_csv
+from engine.stage4 import process_stage4, write_csv\nfrom engine.stage5_export import export_stage5
 from providers import datacite, europe_pmc, openalex
 
 
@@ -314,11 +314,66 @@ def run_stage4(
     print("Status: OK")
 
 
+def run_stage5(
+    profile_path: str,
+    known_corpus_path: str,
+    max_results_per_query: int,
+    output_dir: Path,
+) -> None:
+    profile, plan, run = execute_protocol(profile_path, max_results_per_query, output_dir)
+
+    raw_payload = {
+        "app": "LAIPC+ Search Engine",
+        "stage": "3",
+        "profile_id": profile.get("profile_id"),
+        "research_question": profile.get("research_question"),
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        **run,
+    }
+    write_json(output_dir / "protocol_raw_results.json", raw_payload)
+
+    ranked, audit = process_stage4(
+        raw_records=run["records"],
+        known_corpus_path=known_corpus_path,
+        profile=profile,
+    )
+
+    stage4_payload = {
+        "app": "LAIPC+ Search Engine",
+        "stage": "4",
+        "profile_id": profile.get("profile_id"),
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "audit": audit,
+        "records": ranked,
+    }
+    write_json(output_dir / "stage4_unique_records.json", stage4_payload)
+    write_json(output_dir / "stage4_dedup_audit.json", audit)
+
+    export = export_stage5(
+        output_dir=output_dir,
+        profile=profile,
+        plan=plan,
+        run=run,
+        audit=audit,
+        records=ranked,
+    )
+
+    print("LAIPC+ Stage 5 - Practical delivery package")
+    print(f"Unique records: {audit['unique_record_count']}")
+    print(f"KNOWN: {audit['status_counts'].get('KNOWN', 0)}")
+    print(f"RELATED_TO_KNOWN: {audit['status_counts'].get('RELATED_TO_KNOWN', 0)}")
+    print(f"NEW: {audit['status_counts'].get('NEW', 0)}")
+    print(f"Candidates exported: {export['candidate_count']}")
+    print(f"Work handoff: {export['work_handoff_count']}")
+    print("Workbook: outputs/LAIPC_Search.xlsx")
+    print("Status: OK")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LAIPC+ Search Engine")
     parser.add_argument(
         "--mode",
-        choices=["foundation", "provider_test", "protocol", "stage4"],
+        choices=["foundation", "provider_test", "protocol", "stage4", "stage5"],
         default="foundation",
     )
     parser.add_argument(
@@ -359,6 +414,8 @@ def main() -> None:
         run_research_protocol(args.profile, args.max_results, output_dir)
     elif args.mode == "stage4":
         run_stage4(args.profile, args.known_corpus, args.max_results, output_dir)
+    elif args.mode == "stage5":
+        run_stage5(args.profile, args.known_corpus, args.max_results, output_dir)
 
 
 if __name__ == "__main__":
