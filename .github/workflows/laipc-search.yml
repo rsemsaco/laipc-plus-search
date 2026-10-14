@@ -9,6 +9,7 @@ on:
         default: "stage5"
         type: choice
         options:
+          - stage5
           - stage4
           - protocol
           - provider_test
@@ -68,17 +69,28 @@ jobs:
       - name: Run Stage 4 deduplication and corpus comparison
         if: ${{ inputs.mode == 'stage4' }}
         run: |
-          python search.py             --mode stage4             --profile config/research_profile.yaml             --known-corpus reference/corpus_known.csv             --max-results "${{ inputs.max_results }}"
+          python search.py \
+            --mode stage4 \
+            --profile config/research_profile.yaml \
+            --known-corpus reference/corpus_known.csv \
+            --max-results "${{ inputs.max_results }}"
 
       - name: Run Stage 3 protocol-oriented search
         if: ${{ inputs.mode == 'protocol' }}
         run: |
-          python search.py             --mode protocol             --profile config/research_profile.yaml             --max-results "${{ inputs.max_results }}"
+          python search.py \
+            --mode protocol \
+            --profile config/research_profile.yaml \
+            --max-results "${{ inputs.max_results }}"
 
       - name: Run single-provider test
         if: ${{ inputs.mode == 'provider_test' }}
         run: |
-          python search.py             --mode provider_test             --provider "${{ inputs.provider }}"             --query "${{ inputs.query }}"             --max-results "${{ inputs.max_results }}"
+          python search.py \
+            --mode provider_test \
+            --provider "${{ inputs.provider }}" \
+            --query "${{ inputs.query }}" \
+            --max-results "${{ inputs.max_results }}"
 
       - name: Upload Stage 5 final package
         if: ${{ inputs.mode == 'stage5' }}
