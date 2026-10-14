@@ -10,7 +10,8 @@ from pathlib import Path
 
 from engine.protocol_runner import run_protocol
 from engine.query_builder import build_query_plan, load_profile
-from engine.stage4 import process_stage4, write_csv\nfrom engine.stage5_export import export_stage5
+from engine.stage4 import process_stage4, write_csv
+from engine.stage5_export import export_stage5
 from providers import datacite, europe_pmc, openalex
 
 
