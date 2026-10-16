@@ -8,7 +8,7 @@ A busca existente continua em Actions > LAIPC+ Search Engine.
 ## Branding
 - Slogan: Sua pesquisa é o ponto de partida.
 - Assinatura: De pesquisador, para pesquisadores.
-- Verde profundo #173e35; marfim #f6f4ed; cobre #9b5137.
+- Verde intenso #124b38; marfim #f6f5ee; lima #d7f264; coral #ffb48e.
 - Logo: monograma L e +, com ponto de evidência, em docs/assets/symbol.svg.
 - Tipografia: Bricolage Grotesque nos títulos (Google Fonts, display=swap); Arial na leitura. Fallback local Trebuchet MS/Arial. O carregamento de fontes faz requisições ao Google, sem enviar os textos digitados.
 - Referências de organização de produto: Elicit (fluxo guiado) e ResearchRabbit (pesquisa conectada). Não há afiliação.
@@ -65,3 +65,12 @@ Reverter apenas o PR da landing ou desativar Pages. O motor original permanece i
 - Exemplos inventados identificados; nenhum resultado científico real é simulado como verdadeiro.
 - Referência conceitual para supervisão: https://airc.nist.gov/airmf-resources/airmf/appendices/app-c-ai-risk-management-and-human-ai-interaction/
 - Checks estruturais e sintaxe repetidos; comportamento do comparador verificado com DOM simulado. Revisão em navegador continua pendente.
+
+## Revisão orgânica e interativa
+- Design substituído por composição orgânica, verde intenso, lima e coral. CSS reescrito, sem camadas antigas de overrides.
+- Jornada com quatro abas e controles anterior/próximo/recomeçar. Sem avanço automático.
+- Trechos do projeto e fontes clicáveis com explicações locais; nenhuma busca executada por esses controles.
+- Comparador integrado à última etapa. Conteúdo textual central preservado.
+- Teclado: setas, Home/End nas abas, foco e estados ARIA; sem JS todas as cenas ficam visíveis.
+- Entradas únicas por seção, hover e transições curtas; prefers-reduced-motion respeitado.
+- Verificação estrutural, sintaxe e navegação/interações em DOM simulado aprovadas. Revisão visual real em navegador não disponível neste ambiente.

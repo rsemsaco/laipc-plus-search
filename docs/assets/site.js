@@ -68,3 +68,82 @@ $('compare-view').addEventListener('change', event => {
   if (!view) return;
   for (const key of ['project','a','b','insight','source']) $('compare-' + key).textContent = view[key];
 });
+
+// User-paced journey. Without JavaScript all four scenes remain readable.
+const journeyTabs = Array.from(document.querySelectorAll('.journey-tabs [role="tab"]'));
+const journeyPanels = journeyTabs.map(tab => $(tab.getAttribute('aria-controls')));
+const journeyNames = ['Seu projeto', 'A leitura', 'A busca', 'Sua análise'];
+const nextLabels = ['Ver a leitura →', 'Explorar a busca →', 'Comparar estudos →', 'Recomeçar ↺'];
+let journeyIndex = 0;
+function showJourney(index, focusTab = false) {
+  journeyIndex = Math.max(0, Math.min(index, journeyTabs.length - 1));
+  journeyTabs.forEach((tab, i) => {
+    const active = i === journeyIndex;
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    journeyPanels[i].hidden = !active;
+  });
+  $('research-journey').dataset.stage = String(journeyIndex);
+  $('journey-prev').disabled = journeyIndex === 0;
+  $('journey-next').textContent = nextLabels[journeyIndex];
+  $('journey-status').textContent = `${journeyNames[journeyIndex]} · ${journeyIndex + 1} de 4`;
+  if (focusTab) journeyTabs[journeyIndex].focus({preventScroll:true});
+}
+journeyTabs.forEach((tab, index) => {
+  const panel = journeyPanels[index];
+  panel.setAttribute('role', 'tabpanel');
+  panel.setAttribute('aria-labelledby', tab.id);
+  tab.addEventListener('click', () => showJourney(index));
+  tab.addEventListener('keydown', event => {
+    let target = index;
+    if (event.key === 'ArrowRight') target = (index + 1) % journeyTabs.length;
+    else if (event.key === 'ArrowLeft') target = (index + journeyTabs.length - 1) % journeyTabs.length;
+    else if (event.key === 'Home') target = 0;
+    else if (event.key === 'End') target = journeyTabs.length - 1;
+    else return;
+    event.preventDefault();
+    showJourney(target, true);
+  });
+});
+$('journey-prev').addEventListener('click', () => showJourney(journeyIndex - 1));
+$('journey-next').addEventListener('click', () => showJourney((journeyIndex + 1) % journeyTabs.length));
+$('research-journey').classList.add('enhanced');
+$('journey-navigation').hidden = false;
+$('journey-controls').hidden = false;
+showJourney(0);
+
+const excerptNotes = [
+  'A pergunta orienta quais relações procurar entre os estudos.',
+  'Os participantes ajudam a perceber se um estudo se aplica ao público que você investiga.',
+  'As medidas mostram o que foi observado. Atenção e memória, por exemplo, não são a mesma coisa.'
+];
+const sourceNotes = [
+  'Europe PMC: explorar artigos de ciências da vida e saúde.',
+  'OpenAlex: ampliar a descoberta de literatura em diferentes áreas.',
+  'DataCite: localizar registros de dados e outros materiais de pesquisa.'
+];
+function bindExplainers(selector, key, outputId, notes) {
+  const buttons = Array.from(document.querySelectorAll(selector));
+  buttons.forEach(button => button.addEventListener('click', () => {
+    buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    $(outputId).textContent = notes[Number(button.dataset[key])];
+  }));
+}
+bindExplainers('[data-excerpt]', 'excerpt', 'excerpt-explanation', excerptNotes);
+bindExplainers('[data-source]', 'source', 'source-explanation', sourceNotes);
+
+// One brief entrance per section; never auto-advance or loop animations.
+if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, {threshold:0.08});
+  document.querySelectorAll('.origin-story, .values-connected article, .plan, .oversight-path').forEach(element => {
+    element.classList.add('reveal-ready');
+    observer.observe(element);
+  });
+}
