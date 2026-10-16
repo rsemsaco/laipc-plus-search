@@ -10,7 +10,7 @@ A busca existente continua em Actions > LAIPC+ Search Engine.
 - Assinatura: De pesquisador, para pesquisadores.
 - Verde profundo #173e35; marfim #f6f4ed; cobre #9b5137.
 - Logo: monograma L e +, com ponto de evidência, em docs/assets/symbol.svg.
-- Tipografia: Georgia para títulos editoriais; Arial para interface, sem fontes externas.
+- Tipografia: Bricolage Grotesque nos títulos (Google Fonts, display=swap); Arial na leitura. Fallback local Trebuchet MS/Arial. O carregamento de fontes faz requisições ao Google, sem enviar os textos digitados.
 - Referências de organização de produto: Elicit (fluxo guiado) e ResearchRabbit (pesquisa conectada). Não há afiliação.
 
 ## Funcionamento
@@ -54,3 +54,14 @@ orgânica; só depois avaliar campanha de 30 dias, orçamento e revisão semanal
 
 ## Reversão
 Reverter apenas o PR da landing ou desativar Pages. O motor original permanece independente.
+
+## Revisão visual e de linguagem — outubro de 2026
+- Abertura centralizada e unificada, sem ilustração lateral.
+- Quatro cenas ilustram documento, leitura por trechos, múltiplas bases e comparação.
+- Comparador fictício permite alternar participantes, métodos e medidas; textos via textContent.
+- Human on the Loop explicado como supervisão e possibilidade de intervenção; confirmações humanas também previstas.
+- História visual e cards conectados: transparência, personalização e rigor de busca.
+- Não há alegação de exclusividade frente a concorrentes nem economia de tempo quantificada.
+- Exemplos inventados identificados; nenhum resultado científico real é simulado como verdadeiro.
+- Referência conceitual para supervisão: https://airc.nist.gov/airmf-resources/airmf/appendices/app-c-ai-risk-management-and-human-ai-interaction/
+- Checks estruturais e sintaxe repetidos; comportamento do comparador verificado com DOM simulado. Revisão em navegador continua pendente.

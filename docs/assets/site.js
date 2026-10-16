@@ -44,3 +44,27 @@ document.querySelectorAll('.plan-button').forEach(button => button.addEventListe
 }));
 $('close-plan').addEventListener('click', () => dialog.close());
 $('plan-demo').addEventListener('click', () => {dialog.close();$('research-query').focus();});
+
+// Illustrative comparison: curated examples only, no scientific analysis or requests.
+const comparisonViews = {
+  participants: {
+    project:'Estudantes universitários', a:'Adultos de diferentes idades', b:'Estudantes universitários',
+    insight:'O Estudo B se aproxima do seu público. Isso, por si só, não diz se ele tem melhor qualidade.',
+    source:'Estudo A: “Participaram adultos de diferentes idades.”\nEstudo B: “Participaram estudantes universitários.”'
+  },
+  method: {
+    project:'Acompanhar os mesmos estudantes ao longo do semestre', a:'Uma avaliação em um único dia', b:'Avaliações ao longo de seis meses',
+    insight:'O Estudo B também acompanha mudanças ao longo do tempo. O Estudo A oferece um retrato de um momento. Você decide qual comparação é útil.',
+    source:'Estudo A: “A coleta ocorreu em uma única sessão.”\nEstudo B: “Os participantes foram avaliados mensalmente durante seis meses.”'
+  },
+  findings: {
+    project:'Qualidade do sono e desempenho em testes de memória', a:'Horas de sono e atenção', b:'Qualidade do sono e memória',
+    insight:'O Estudo A mede atenção; o B, memória. Medidas diferentes respondem a perguntas diferentes — não devem ser tratadas como equivalentes.',
+    source:'Estudo A: “Registramos as horas de sono e aplicamos um teste de atenção.”\nEstudo B: “Avaliamos a qualidade do sono e o desempenho em tarefas de memória.”'
+  }
+};
+$('compare-view').addEventListener('change', event => {
+  const view = comparisonViews[event.target.value];
+  if (!view) return;
+  for (const key of ['project','a','b','insight','source']) $('compare-' + key).textContent = view[key];
+});
